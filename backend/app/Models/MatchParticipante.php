@@ -14,6 +14,7 @@ class MatchParticipante extends Model
         'puuid',
         'campeao',
         'lane',
+        'team_position',
         'role',
         'venceu',
         'kills',
