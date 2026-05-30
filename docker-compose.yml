@@ -1,0 +1,78 @@
+services:
+  app:
+    build:
+      context: ./backend
+    container_name: lol_backend
+    volumes:
+      - ./backend:/var/www
+    depends_on:
+      - postgres
+      - redis
+
+  nginx:
+    image: nginx:latest
+    container_name: lol_nginx
+    ports:
+      - "8000:80"
+    volumes:
+      - ./backend:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+
+  postgres:
+    image: postgres:16
+    container_name: lol_postgres
+    environment:
+      POSTGRES_DB: lol_db
+      POSTGRES_USER: lol_user
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    container_name: lol_redis
+    ports:
+      - "6379:6379"
+
+  worker:
+    build:
+      context: ./backend
+    container_name: lol_worker
+    command: php artisan queue:work
+    volumes:
+      - ./backend:/var/www
+    depends_on:
+      - app
+      - redis
+      - postgres
+
+  scheduler:
+    build:
+      context: ./backend
+    container_name: lol_scheduler
+    command: php artisan schedule:work
+    volumes:
+      - ./backend:/var/www
+    depends_on:
+      - app
+      - redis
+      - postgres
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: lol_frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+volumes:
+  postgres_data:
