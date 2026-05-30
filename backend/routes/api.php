@@ -3,6 +3,7 @@
 use App\Http\Controllers\CampeaoController;
 use App\Http\Controllers\FeiticoInvocadorController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\MatchController;
 use App\Http\Controllers\PatchController;
 use App\Http\Controllers\RunaController;
 use Illuminate\Support\Facades\Route;
@@ -38,3 +39,5 @@ Route::get('/runas/{riotId}', [RunaController::class, 'show']);
 Route::get('/arvores-runas', [RunaController::class, 'index']);
 
 Route::get('/patches', [PatchController::class, 'index']);
+Route::get('/partidas', [MatchController::class, 'index']);
+Route::get('/partidas/{riotMatchId}', [MatchController::class, 'show']);

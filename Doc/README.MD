@@ -1,25 +1,62 @@
 # LOL Analytics Platform
 
-Plataforma de análise avançada de dados do League of Legends baseada na API oficial da Riot.
+Plataforma para analise de dados do League of Legends com backend Laravel, frontend Next.js, PostgreSQL e Redis.
 
-## Objetivo
+## Estado atual
 
-Criar um sistema profissional com:
-- Estatísticas por campeão
-- Builds ideais
-- Matchups
-- Dados por elo, patch e região
+- Controllers API organizados:
+  - `CampeaoController`
+  - `ItemController`
+  - `FeiticoInvocadorController`
+  - `RunaController`
+  - `PatchController`
+- Command geral de sincronizacao criado: `lol:sincronizar-estaticos`
+- Scheduler registrado para executar sincronizacao de hora em hora
 
-## Stack
+## Subida do ambiente (Docker)
 
-- Frontend: Next.js
-- Backend: Laravel API
-- Banco: PostgreSQL
-- Cache/Fila: Redis
-- Infra: Docker
+Na raiz do projeto:
 
-## Filosofia
+```bash
+docker compose up -d --build
+```
 
-- Dados pré-processados (não em tempo real)
-- Versionamento por patch
-- Escalabilidade desde o início
+## Setup backend
+
+```bash
+docker compose exec app cp .env.example .env
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate
+```
+
+## Sincronizacao de dados estaticos
+
+```bash
+docker compose exec app php artisan lol:sincronizar-estaticos
+```
+
+O comando sincroniza:
+- Campeoes
+- Itens
+- Feiticos de invocador
+- Runas
+- Patch ativo na tabela `patches`
+
+## Scheduler
+
+Container dedicado ja previsto no `docker-compose.yml`:
+
+```bash
+docker compose up -d scheduler
+```
+
+Verificacao manual:
+
+```bash
+docker compose exec app php artisan schedule:list
+```
+
+## Observacoes de ambiente local (fora do Docker)
+
+Se rodar comandos direto no host, ajuste `.env` para hosts reais de banco/redis.  
+Com `DB_HOST=postgres` e `REDIS_HOST=redis`, os comandos esperam a rede Docker.

@@ -38,5 +38,8 @@ return [
     'riot' => [
         'data_dragon_url' => env('RIOT_DATA_DRAGON_URL', 'https://ddragon.leagueoflegends.com'),
         'locale' => env('RIOT_DATA_DRAGON_LOCALE', 'pt_BR'),
+        'api_key' => env('RIOT_API_KEY'),
+        'region' => env('RIOT_REGION', 'br1'),
+        'routing_region' => env('RIOT_ROUTING_REGION', 'americas'),
     ],
 ];
