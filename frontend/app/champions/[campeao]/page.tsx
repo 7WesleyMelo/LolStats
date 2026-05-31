@@ -1,6 +1,10 @@
 import Link from "next/link";
+import FiltersDrawer from "./FiltersDrawer";
+import ChampionToolbar from "./ChampionToolbar";
 
 type QueryValue = string | string[] | undefined;
+type PatchApiItem = { versao: string };
+type ChampionApiItem = { riot_id?: string; nome?: string };
 
 type OverviewResponse = {
   campeao: string;
@@ -74,7 +78,8 @@ function asString(value: QueryValue): string | null {
 }
 
 function getApiBaseUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const configured =
+    process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL;
   if (configured && configured.length > 0) {
     return configured.replace(/\/$/, "");
   }
@@ -113,17 +118,17 @@ export default async function ChampionPage({
 
   const patch = asString(query.patch);
   const posicao = asString(query.posicao);
-  const minPartidas = asString(query.min_partidas) ?? "20";
+  const hideLowPickrate = asString(query.hide_low_pickrate) === "1";
+  const hideLowOccurrence = asString(query.hide_low_occurrence) === "1";
 
   const qs = new URLSearchParams();
   if (patch) qs.set("patch", patch);
   if (posicao) qs.set("posicao", posicao.toUpperCase());
-  if (minPartidas) qs.set("min_partidas", minPartidas);
 
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   const championSlug = encodeURIComponent(campeao);
 
-  const [overview, itens, runas, matchups] = await Promise.all([
+  const [overview, itens, runas, matchups, patchesResponse, championsResponse] = await Promise.all([
     fetchJson<OverviewResponse>(`/campeoes/${championSlug}/overview${suffix}`),
     fetchJson<ItemsResponse>(
       `/campeoes/${championSlug}/itens${suffix}${
@@ -140,55 +145,89 @@ export default async function ChampionPage({
         suffix ? "&" : "?"
       }sort=winrate&direction=desc`,
     ),
+    fetchJson<PatchApiItem[]>("/patches"),
+    fetchJson<ChampionApiItem[]>("/campeoes"),
   ]);
 
+  const activeRole = (overview?.posicao_principal?.posicao ?? posicao ?? "ALL").toUpperCase();
+  const activePatch = overview?.patch ?? patch ?? "latest";
+  const patchOptions = Array.from(
+    new Set(
+      (patchesResponse ?? [])
+        .map((p) => (p.versao ?? "").split(".").slice(0, 2).join("."))
+        .filter((p) => p.length > 0),
+    ),
+  );
+  const championOptions = (championsResponse ?? [])
+    .map((c) => c.riot_id ?? c.nome ?? "")
+    .filter((name) => name.length > 0)
+    .sort((a, b) => a.localeCompare(b));
+  const positionOptions = ["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"];
+  const filteredItems = (itens?.itens ?? [])
+    .filter((item) => !hideLowPickrate || Number(item.pickrate) >= 1)
+    .filter((item) => !hideLowOccurrence || item.partidas >= 5);
+  const filteredRunes = (runas?.runas ?? [])
+    .filter((runa) => !hideLowPickrate || Number(runa.pickrate) >= 1)
+    .filter((runa) => !hideLowOccurrence || runa.partidas >= 5);
+  const filteredMatchups = (matchups?.matchups ?? []).filter(
+    (m) => !hideLowOccurrence || m.partidas >= 5,
+  );
+  const highlightItems = filteredItems.slice(0, 12);
+  const highlightRunes = filteredRunes.slice(0, 12);
+  const highlightMatchups = filteredMatchups.slice(0, 12);
+
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto max-w-6xl px-4 py-10 md:px-8">
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm uppercase tracking-widest text-cyan-300/80">
-              Champion Report
-            </p>
-            <h1 className="text-4xl font-bold">{campeao}</h1>
+    <main className="min-h-screen bg-[#040913] text-slate-100">
+      <div className="mx-auto max-w-7xl px-4 py-10 md:px-8">
+        <div className="relative mb-8 overflow-hidden rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-cyan-900/30 via-slate-900 to-slate-950 p-6 md:p-8">
+          <div className="pointer-events-none absolute -top-14 -right-14 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-16 -left-8 h-44 w-44 rounded-full bg-blue-500/20 blur-3xl" />
+          <div className="relative flex flex-wrap items-start justify-between gap-5">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-cyan-200/70">
+                Build Intelligence
+              </p>
+              <h1 className="mt-2 text-4xl font-black tracking-tight md:text-5xl">
+                {campeao}
+              </h1>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Pill>{activeRole}</Pill>
+                <Pill>Patch {activePatch}</Pill>
+                <Pill>Dados por patch selecionado</Pill>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Link
+                href="/"
+                className="rounded-md border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-200 hover:border-cyan-400/60"
+              >
+                Home
+              </Link>
+              <Link
+                href={`/champions/${encodeURIComponent(campeao)}`}
+                className="rounded-md border border-cyan-300/40 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100 hover:bg-cyan-300/20"
+              >
+                Reset filtros
+              </Link>
+            </div>
           </div>
-          <Link
-            href="/"
-            className="rounded-md border border-cyan-300/40 px-3 py-2 text-sm text-cyan-200 hover:bg-cyan-300/10"
-          >
-            Voltar
-          </Link>
         </div>
 
-        <form className="mb-8 grid gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 md:grid-cols-4">
-          <input
-            type="text"
-            name="patch"
-            defaultValue={patch ?? ""}
-            placeholder="Patch (ex: 16.11)"
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-cyan-400"
+        <div className="flex items-start justify-between gap-3">
+          <ChampionToolbar
+            campeaoAtual={campeao}
+            campeoes={championOptions}
+            posicaoAtual={(posicao ?? "").toUpperCase()}
           />
-          <input
-            type="text"
-            name="posicao"
-            defaultValue={posicao ?? ""}
-            placeholder="Posicao (TOP/JUNGLE...)"
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-cyan-400"
+          <FiltersDrawer
+            patches={patchOptions}
+            positions={positionOptions}
+            selectedPatch={patch ?? ""}
+            selectedPosicao={posicao ?? ""}
+            defaultHideLowPickrate={hideLowPickrate}
+            defaultHideLowOccurrence={hideLowOccurrence}
           />
-          <input
-            type="number"
-            name="min_partidas"
-            min={1}
-            defaultValue={minPartidas}
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-cyan-400"
-          />
-          <button
-            type="submit"
-            className="rounded-md bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
-          >
-            Aplicar filtros
-          </button>
-        </form>
+        </div>
 
         <section className="mb-6 grid gap-4 md:grid-cols-5">
           <StatCard title="Partidas" value={overview?.geral?.partidas ?? 0} />
@@ -205,37 +244,49 @@ export default async function ChampionPage({
           <TableCard
             title="Melhores Itens"
             headers={["Item", "Partidas", "Winrate", "Pickrate"]}
-            rows={(itens?.itens ?? []).slice(0, 12).map((row) => [
-              String(row.item),
-              String(row.partidas),
-              `${row.winrate}%`,
-              `${row.pickrate}%`,
-            ])}
-            emptyMessage="Sem dados de itens."
+            rows={highlightItems.map((row) => ({
+              key: String(row.item),
+              cells: [
+                `#${row.item}`,
+                String(row.partidas),
+                `${row.winrate}%`,
+                `${row.pickrate}%`,
+              ],
+              trend: Number(row.winrate),
+            }))}
+            emptyMessage="Sem dados de itens para os filtros selecionados."
           />
 
           <TableCard
             title="Runas"
             headers={["Runa", "Partidas", "Winrate", "Pickrate"]}
-            rows={(runas?.runas ?? []).slice(0, 12).map((row) => [
-              row.runa,
-              String(row.partidas),
-              `${row.winrate}%`,
-              `${row.pickrate}%`,
-            ])}
-            emptyMessage="Sem dados de runas."
+            rows={highlightRunes.map((row) => ({
+              key: row.runa,
+              cells: [
+                row.runa,
+                String(row.partidas),
+                `${row.winrate}%`,
+                `${row.pickrate}%`,
+              ],
+              trend: Number(row.winrate),
+            }))}
+            emptyMessage="Sem dados de runas para os filtros selecionados."
           />
 
           <TableCard
             title="Matchups"
             headers={["Adversario", "Partidas", "Vitorias", "Winrate"]}
-            rows={(matchups?.matchups ?? []).slice(0, 12).map((row) => [
-              row.adversario,
-              String(row.partidas),
-              String(row.vitorias),
-              `${row.winrate}%`,
-            ])}
-            emptyMessage="Sem dados de matchups."
+            rows={highlightMatchups.map((row) => ({
+              key: row.adversario,
+              cells: [
+                row.adversario,
+                String(row.partidas),
+                String(row.vitorias),
+                `${row.winrate}%`,
+              ],
+              trend: Number(row.winrate),
+            }))}
+            emptyMessage="Sem dados de matchups para os filtros selecionados."
           />
         </div>
       </div>
@@ -245,10 +296,18 @@ export default async function ChampionPage({
 
 function StatCard({ title, value }: { title: string; value: string | number }) {
   return (
-    <article className="rounded-xl border border-slate-800 bg-slate-900/80 p-4">
+    <article className="rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-4">
       <p className="text-xs uppercase tracking-wider text-slate-400">{title}</p>
-      <p className="mt-2 text-2xl font-bold text-cyan-200">{value}</p>
+      <p className="mt-2 text-2xl font-bold text-cyan-100">{value}</p>
     </article>
+  );
+}
+
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+      {children}
+    </span>
   );
 }
 
@@ -260,7 +319,7 @@ function TableCard({
 }: {
   title: string;
   headers: string[];
-  rows: string[][];
+  rows: Array<{ key: string; cells: string[]; trend: number }>;
   emptyMessage: string;
 }) {
   return (
@@ -284,10 +343,28 @@ function TableCard({
             </thead>
             <tbody>
               {rows.map((row, index) => (
-                <tr key={`${title}-${index}`} className="border-t border-slate-800/70">
-                  {row.map((cell, cellIndex) => (
-                    <td key={`${title}-${index}-${cellIndex}`} className="px-4 py-2">
-                      {cell}
+                <tr key={`${title}-${row.key}-${index}`} className="group border-t border-slate-800/70">
+                  {row.cells.map((cell, cellIndex) => (
+                    <td key={`${title}-${row.key}-${cellIndex}`} className="px-4 py-2">
+                      {cellIndex === row.cells.length - 1 ? (
+                        <div className="flex items-center gap-2">
+                          <span>{cell}</span>
+                          <span className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-700">
+                            <span
+                              className={`block h-full ${
+                                row.trend >= 52
+                                  ? "bg-emerald-400"
+                                  : row.trend >= 48
+                                    ? "bg-amber-400"
+                                    : "bg-rose-400"
+                              }`}
+                              style={{ width: `${Math.max(3, Math.min(100, row.trend))}%` }}
+                            />
+                          </span>
+                        </div>
+                      ) : (
+                        cell
+                      )}
                     </td>
                   ))}
                 </tr>
