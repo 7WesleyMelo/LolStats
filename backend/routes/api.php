@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CampeaoController;
+use App\Http\Controllers\ChampionInsightsController;
 use App\Http\Controllers\ChampionMatchupController;
 use App\Http\Controllers\ChampionRankingController;
 use App\Http\Controllers\ChampionStatsController;
@@ -42,6 +43,10 @@ Route::get('/riot/conta/{gameName}/{tagLine}', function (
 
 Route::get('/campeoes', [CampeaoController::class, 'index']);
 Route::get('/campeoes/{riotId}', [CampeaoController::class, 'show']);
+Route::get('/campeoes/{campeao}/matchups', [ChampionInsightsController::class, 'matchups']);
+Route::get('/campeoes/{campeao}/itens', [ChampionInsightsController::class, 'itens']);
+Route::get('/campeoes/{campeao}/runas', [ChampionInsightsController::class, 'runas']);
+Route::get('/campeoes/{campeao}/overview', [ChampionInsightsController::class, 'overview']);
 
 Route::get('/itens', [ItemController::class, 'index']);
 Route::get('/itens/{riotId}', [ItemController::class, 'show']);
