@@ -226,6 +226,7 @@ class AgregarEstatisticasCampeoesCommand extends Command
                 foreach ($statsRuna as $s) {
                     $partidas = (int) $s['partidas'];
                     $vitorias = (int) $s['vitorias'];
+                    $totalPatchPosicao = max(1, (int) ($totaisPorPatchPosicao[$s['patch'].'|'.$s['posicao']] ?? 1));
                     ChampionRuneStat::create([
                         'campeao' => $s['campeao'],
                         'posicao' => $s['posicao'],
@@ -235,6 +236,7 @@ class AgregarEstatisticasCampeoesCommand extends Command
                         'partidas' => $partidas,
                         'vitorias' => $vitorias,
                         'winrate' => round(($vitorias / max(1, $partidas)) * 100, 2),
+                        'pickrate' => round(($partidas / $totalPatchPosicao) * 100, 2),
                     ]);
                 }
 

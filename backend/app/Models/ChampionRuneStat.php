@@ -17,6 +17,7 @@ class ChampionRuneStat extends Model
         'partidas',
         'vitorias',
         'winrate',
+        'pickrate',
     ];
 
     protected $casts = [
