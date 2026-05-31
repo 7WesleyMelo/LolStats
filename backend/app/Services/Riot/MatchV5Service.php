@@ -17,7 +17,12 @@ class MatchV5Service
         $this->routingRegion = (string) config('services.riot.routing_region', 'americas');
     }
 
-    public function matchIdsByPuuid(string $puuid, int $start = 0, int $count = 20): array
+    public function matchIdsByPuuid(
+        string $puuid,
+        int $start = 0,
+        int $count = 20,
+        ?int $queue = null
+    ): array
     {
         $url = sprintf(
             'https://%s.api.riotgames.com/lol/match/v5/matches/by-puuid/%s/ids',
@@ -25,8 +30,13 @@ class MatchV5Service
             $puuid
         );
 
+        $query = ['start' => $start, 'count' => $count];
+        if ($queue !== null) {
+            $query['queue'] = $queue;
+        }
+
         return $this->request()
-            ->get($url, ['start' => $start, 'count' => $count])
+            ->get($url, $query)
             ->throw()
             ->json();
     }

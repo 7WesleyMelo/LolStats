@@ -14,6 +14,8 @@ class FetchPlayerMatchesJob implements ShouldQueue
 {
     use Queueable;
 
+    private const RANKED_SOLO_QUEUE_ID = 420;
+
     public function __construct(
         public int $jogadores = 100,
         public int $partidasPorJogador = 20
@@ -44,10 +46,27 @@ class FetchPlayerMatchesJob implements ShouldQueue
                     continue;
                 }
 
-                $matchIds = $matchV5->matchIdsByPuuid($summoner->puuid, 0, $limitePartidas);
+                $matchIds = $matchV5->matchIdsByPuuid(
+                    $summoner->puuid,
+                    0,
+                    $limitePartidas,
+                    self::RANKED_SOLO_QUEUE_ID
+                );
+                if (empty($matchIds)) {
+                    $summoner->update([
+                        'last_matches_fetched_at' => now(),
+                    ]);
+                    continue;
+                }
+
+                $existingIds = MatchModel::query()
+                    ->whereIn('riot_match_id', $matchIds)
+                    ->pluck('riot_match_id')
+                    ->all();
+                $existingMap = array_fill_keys($existingIds, true);
 
                 foreach ($matchIds as $matchId) {
-                    if (!MatchModel::query()->where('riot_match_id', $matchId)->exists()) {
+                    if (!isset($existingMap[$matchId])) {
                         ProcessMatchJob::dispatch($matchId);
                     }
                 }

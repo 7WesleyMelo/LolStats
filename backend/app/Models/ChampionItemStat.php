@@ -17,6 +17,7 @@ class ChampionItemStat extends Model
         'partidas',
         'vitorias',
         'winrate',
+        'pickrate',
     ];
 
     protected $casts = [

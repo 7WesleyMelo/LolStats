@@ -71,6 +71,7 @@ class AgregarEstatisticasCampeoesCommand extends Command
                 ChampionMatchup::query()->whereIn('patch', $patches)->delete();
 
                 $totaisPorPatch = [];
+                $totaisPorPatchPosicao = [];
                 $statsPosicao = [];
                 $statsCampeao = [];
                 $statsItem = [];
@@ -88,6 +89,8 @@ class AgregarEstatisticasCampeoesCommand extends Command
                     $campeao = (string) $row->campeao;
                     $venceu = (bool) $row->venceu;
                     $totaisPorPatch[$patch] = ($totaisPorPatch[$patch] ?? 0) + 1;
+                    $kPatchPosicao = $patch.'|'.$posicao;
+                    $totaisPorPatchPosicao[$kPatchPosicao] = ($totaisPorPatchPosicao[$kPatchPosicao] ?? 0) + 1;
 
                     $kPosicao = $campeao.'|'.$posicao.'|'.$patch;
                     $statsPosicao[$kPosicao]['campeao'] = $campeao;
@@ -206,6 +209,7 @@ class AgregarEstatisticasCampeoesCommand extends Command
                 foreach ($statsItem as $s) {
                     $partidas = (int) $s['partidas'];
                     $vitorias = (int) $s['vitorias'];
+                    $totalPatchPosicao = max(1, (int) ($totaisPorPatchPosicao[$s['patch'].'|'.$s['posicao']] ?? 1));
                     ChampionItemStat::create([
                         'campeao' => $s['campeao'],
                         'posicao' => $s['posicao'],
@@ -215,6 +219,7 @@ class AgregarEstatisticasCampeoesCommand extends Command
                         'partidas' => $partidas,
                         'vitorias' => $vitorias,
                         'winrate' => round(($vitorias / max(1, $partidas)) * 100, 2),
+                        'pickrate' => round(($partidas / $totalPatchPosicao) * 100, 2),
                     ]);
                 }
 
