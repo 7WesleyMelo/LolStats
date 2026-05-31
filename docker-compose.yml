@@ -3,6 +3,8 @@ services:
     build:
       context: ./backend
     container_name: lol_backend
+    env_file:
+      - ./backend/.env
     volumes:
       - ./backend:/var/www
     depends_on:
@@ -42,6 +44,8 @@ services:
     build:
       context: ./backend
     container_name: lol_worker
+    env_file:
+      - ./backend/.env
     command: php artisan queue:work
     volumes:
       - ./backend:/var/www
@@ -54,6 +58,8 @@ services:
     build:
       context: ./backend
     container_name: lol_scheduler
+    env_file:
+      - ./backend/.env
     command: php artisan schedule:work
     volumes:
       - ./backend:/var/www

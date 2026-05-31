@@ -22,25 +22,44 @@ class SeedRankedPlayersJob implements ShouldQueue
     public function handle(RankedService $rankedService, AccountService $accountService): void
     {
         $grupos = [];
-        $grupos[] = $rankedService->challengerLeague()['entries'] ?? [];
-        $grupos[] = $rankedService->grandmasterLeague()['entries'] ?? [];
-        $grupos[] = $rankedService->masterLeague()['entries'] ?? [];
+
+        $challenger = $rankedService->challengerLeague();
+        $grupos[] = [
+            'entries' => $challenger['entries'] ?? [],
+            'tier' => $challenger['tier'] ?? 'CHALLENGER',
+        ];
+
+        $grandmaster = $rankedService->grandmasterLeague();
+        $grupos[] = [
+            'entries' => $grandmaster['entries'] ?? [],
+            'tier' => $grandmaster['tier'] ?? 'GRANDMASTER',
+        ];
+
+        $master = $rankedService->masterLeague();
+        $grupos[] = [
+            'entries' => $master['entries'] ?? [],
+            'tier' => $master['tier'] ?? 'MASTER',
+        ];
 
         for ($p = 1; $p <= $this->diamondPages; $p++) {
-            $grupos[] = $rankedService->diamondOneEntries($p);
+            $grupos[] = [
+                'entries' => $rankedService->diamondOneEntries($p),
+                'tier' => 'DIAMOND',
+            ];
         }
 
-        foreach ($grupos as $entries) {
+        foreach ($grupos as $grupo) {
+            $entries = $grupo['entries'] ?? [];
+            $groupTier = $grupo['tier'] ?? null;
             foreach ($entries as $entry) {
                 try {
                     $summonerId = (string) ($entry['summonerId'] ?? '');
-                    if ($summonerId === '') {
-                        continue;
-                    }
-
                     $puuid = Arr::get($entry, 'puuid');
                     if (is_string($puuid) && $puuid === '') {
                         $puuid = null;
+                    }
+                    if ($summonerId === '' && !is_string($puuid)) {
+                        continue;
                     }
 
                     $accountData = [];
@@ -48,21 +67,25 @@ class SeedRankedPlayersJob implements ShouldQueue
                         $accountData = $accountService->buscarPorPuuid($puuid);
                     }
 
-                    Summoner::updateOrCreate(
-                        ['summoner_id' => $summonerId],
-                        [
-                            'puuid' => $puuid,
-                            'nome' => $accountData['gameName'] ?? ($entry['summonerName'] ?? null),
-                            'tag_line' => $accountData['tagLine'] ?? null,
-                            'tier' => $entry['tier'] ?? null,
-                            'rank' => $entry['rank'] ?? null,
-                            'league_points' => (int) ($entry['leaguePoints'] ?? 0),
-                            'wins' => (int) ($entry['wins'] ?? 0),
-                            'losses' => (int) ($entry['losses'] ?? 0),
-                            'region' => (string) config('services.riot.region', 'br1'),
-                            'last_seeded_at' => now(),
-                        ]
-                    );
+                    $attributes = [
+                        'puuid' => $puuid,
+                        'summoner_id' => $summonerId !== '' ? $summonerId : null,
+                        'nome' => $accountData['gameName'] ?? ($entry['summonerName'] ?? null),
+                        'tag_line' => $accountData['tagLine'] ?? null,
+                        'tier' => $entry['tier'] ?? $groupTier,
+                        'rank' => $entry['rank'] ?? null,
+                        'league_points' => (int) ($entry['leaguePoints'] ?? 0),
+                        'wins' => (int) ($entry['wins'] ?? 0),
+                        'losses' => (int) ($entry['losses'] ?? 0),
+                        'region' => (string) config('services.riot.region', 'br1'),
+                        'last_seeded_at' => now(),
+                    ];
+
+                    if (is_string($puuid) && $puuid !== '') {
+                        Summoner::updateOrCreate(['puuid' => $puuid], $attributes);
+                    } else {
+                        Summoner::updateOrCreate(['summoner_id' => $summonerId], $attributes);
+                    }
                 } catch (Throwable) {
                     // Continua a coleta mesmo se um jogador falhar.
                     continue;

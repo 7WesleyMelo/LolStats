@@ -52,6 +52,27 @@ class RankedService
             ->json();
     }
 
+    public function summonerByPuuid(string $puuid): array
+    {
+        return $this->request()->get($this->platformUrl('/lol/summoner/v4/summoners/by-puuid/'.$puuid))
+            ->throw()
+            ->json();
+    }
+
+    public function leagueEntriesBySummonerId(string $summonerId): array
+    {
+        return $this->request()->get($this->platformUrl('/lol/league/v4/entries/by-summoner/'.$summonerId))
+            ->throw()
+            ->json();
+    }
+
+    public function leagueEntriesByPuuid(string $puuid): array
+    {
+        return $this->request()->get($this->platformUrl('/lol/league/v4/entries/by-puuid/'.$puuid))
+            ->throw()
+            ->json();
+    }
+
     private function request(): PendingRequest
     {
         if ($this->apiKey === '') {
